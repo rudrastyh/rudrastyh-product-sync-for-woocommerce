@@ -1,0 +1,17 @@
+.woocommerce_page_wc-settings-psfw-product-sync .woocommerce table.form-table .select2-container {
+    min-width: auto !important;
+    width: auto !important;
+}
+
+.psfw-add-store{
+    max-width:325px;
+    margin-top: 1em;
+}
+
+.psfw-add-store div .form-field:first-child{
+    margin-top:0;
+}
+
+#psfw-stores-notices + h2 {
+    margin: 2em 0 1em 0;
+}
