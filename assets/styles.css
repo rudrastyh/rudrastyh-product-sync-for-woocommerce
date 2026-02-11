@@ -1,4 +1,4 @@
-.woocommerce_page_wc-settings-psfw-product-sync .woocommerce table.form-table .select2-container {
+.woocommerce_page_wc-settings-psfw-product-sync .woocommerce table.form-table.psfw-fields-table .select2-container {
     min-width: auto !important;
     width: auto !important;
 }

@@ -4,7 +4,7 @@
  Description: Allows you to sync products between standalone WooCommerce stores.
  Author: Misha Rudrastyh
  Author URI: https://rudrastyh.com
- Version: 1.0
+ Version: 1.1
  Requires Plugins: woocommerce
  Text domain: rudrastyh-product-sync-for-woocommerce
  License: GPL v2 or later
@@ -61,7 +61,7 @@ class PSFW_Product_Sync {
 		add_filter( 'plugin_action_links', array( $this, 'settings_link' ), 10, 2 );
 
 		add_action( 'admin_menu', array( $this, 'metabox' ) );
-		add_action( 'save_post_product', array( $this, 'save' ), 99, 2 );
+		add_action( 'save_post', array( $this, 'save' ), 9999, 2 );
 	}
 
 	private function is_localhost_url( $url ) {
@@ -459,7 +459,7 @@ class PSFW_Product_Sync {
               ?><h3><?php echo esc_html( $product_fields_section[ 'title' ] ) ?></h3><?php
             }
 
-            ?><table class="form-table"><?php
+            ?><table class="form-table psfw-fields-table"><?php
               foreach( $product_fields_section[ 'fields' ] as $id => $field ) :
                 ?>
                   <tr valign="top">
@@ -515,6 +515,23 @@ class PSFW_Product_Sync {
 									<input type="checkbox" name="handle_deletion"<?php checked( 'yes', get_option( '_psfw_handle_deletion' ) ) ?>>&nbsp;<?php esc_html_e( 'Yes', 'rudrastyh-product-sync-for-woocommerce' ) ?>
 								</label>
 								<p class="description"><?php esc_html_e( 'By default, the plugin syncs only product updates, but with this option enabled, when you delete a product, its synced copy will be deleted as well.', 'rudrastyh-product-sync-for-woocommerce' ) ?></p>
+							</td>
+						</tr>
+						<tr valign="top">
+							<th scope="row"><?php esc_html_e( 'Auto mode', 'rudrastyh-product-sync-for-woocommerce' ) ?></th>
+							<td>
+								<label><input type="checkbox" name="is_auto_mode" disabled="disabled">&nbsp;<?php esc_html_e( 'Yes', 'rudrastyh-product-sync-for-woocommerce' ) ?></label>
+								<p class="description">(<a href="https://rudrastyh.com/plugins/simple-wordpress-crossposting">Pro</a>) <?php esc_html_e( 'With this option enabled the plugin will sync products automatically to all connected stores.', 'rudrastyh-product-sync-for-woocommerce' ) ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="connection_type"><?php esc_html_e( 'Product connection type', 'rudrastyh-product-sync-for-woocommerce' ) ?></label></th>
+							<td>
+								<select id="connection_type" class="wc-enhanced-select">
+            						<option value="" disabled="disabled"><?php esc_html_e( 'Meta field', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
+									<option value="sku" selected="selected"><?php esc_html_e( 'SKU', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
+								</select>
+								<p class="description">(<a href="https://rudrastyh.com/plugins/simple-wordpress-crossposting">Pro</a>) <?php esc_html_e( 'Meta fields are faster and work in most cases but if you need a more accurate connection use SKU.', 'rudrastyh-product-sync-for-woocommerce' ) ?></p>
 							</td>
 						</tr>
 					</tbody>
@@ -625,6 +642,10 @@ class PSFW_Product_Sync {
 			return;
 		}
 
+		if( 'product' !== $post->post_type ) {
+			return;
+		}
+
 		// Only set for specific statuses
 		$allowed_product_statuses = ( $allowed_product_statuses = get_option( '_psfw_allowed_statuses' ) ) ? $allowed_product_statuses : array( 'publish' );
 		if ( ! in_array( $post->post_status, $allowed_product_statuses ) ) {
@@ -663,16 +684,25 @@ class PSFW_Product_Sync {
 
 	}
 
-	public function is_synced_product( $product, $store ) {
+	public function is_synced_product( $product, $store, $woocommerce ) {
 
-		$store_id = $this->get_store_id( $store );
-		$synced = $product->get_meta( self::META_KEY . 'data' );
+		$product_sku = $product->get_sku();
 
-		if( $synced && is_array( $synced ) && array_key_exists( $store_id, $synced ) ) {
-			return $synced[ $store_id ];
+		try {
+			$products = $woocommerce->get(
+				'products', 
+				array(
+					'sku' => $product_sku,
+				) 
+			);
+
+			$product = $products[0];
+
+			return $product->id;
+
+		} catch (Exception $e) {
+			return 0;
 		}
-
-		return 0;
 
 	}
 
@@ -689,7 +719,7 @@ class PSFW_Product_Sync {
 			if( ! $product ) {
 				continue;
 			}
-			$synced_id = $this->is_synced_product( $product, $store );
+			$synced_id = $this->is_synced_product( $product, $store, $woocommerce );
 			if( ! $synced_id ) {
 				continue;
 			}
@@ -713,23 +743,6 @@ class PSFW_Product_Sync {
 		}
 
 		return 0;
-	}
-
-	public function add_synced_data( $product, $product_id, $store_id, $update_checkboxes = true ) {
-
-		if( ! $product_id ) {
-			return;
-		}
-
-		$synced = $product->get_meta( self::META_KEY . 'data' );
-		$synced = $synced && is_array( $synced ) ? $synced : array();
-		$synced[ $store_id ] = (int) $product_id;
-		$product->update_meta_data( self::META_KEY . 'data', $synced );
-		if( $update_checkboxes ) {
-			$product->update_meta_data( self::META_KEY . $store_id, 1 );
-		}
-		$product->save_meta_data();
-
 	}
 
 	public function add_synced_image_data( $image_id, $new_image_id, $store_id ) {
@@ -757,10 +770,11 @@ class PSFW_Product_Sync {
 					continue;
 				}
 
-				$variations1[] = array(
-					'id' => $available_variation->get_id(),
-					'attributes' => $available_variation->get_variation_attributes(),
-				);
+				if( ! $sku = get_post_meta( $available_variation->get_id(), '_sku', true ) ) {
+					continue;
+				}
+
+				$variations1[ $sku ] = $available_variation->get_id();
 
 			}
 		}
@@ -777,15 +791,11 @@ class PSFW_Product_Sync {
 			if( $variations2 ) {
 				foreach( $variations2 as $variation2 ) {
 
-					$attributes = array();
-					foreach( $variation2->attributes as $attribute ) {
-						$attributes[ "attribute_{$attribute->slug}" ] = sanitize_title( $attribute->option );
-					}
-					foreach( $variations1 as $variation1 ) {
-						if( empty( array_diff_assoc( $attributes, $variation1[ 'attributes' ] ) ) ) {
-							$variations[ $variation1[ 'id' ] ] = $variation2->id;
-							continue 2;
-						}
+					$sku = isset( $variation2[ 'sku' ] ) && $variation2[ 'sku' ] ? $variation2[ 'sku' ] : '';
+					if( $sku && isset( $variations1[ $sku ] ) ) {
+						// $variation[ current variation ID ] == remote variation ID
+						$variations[ $variations1[ $sku ] ] = $variation2[ 'id' ];
+						continue;
 					}
 
 					$variations[ 'delete' ][] = array( 'id' => $variation2->id );
@@ -805,6 +815,10 @@ class PSFW_Product_Sync {
 		$product = wc_get_product( $product_id );
 
 		if( ! $product ) {
+			return false;
+		}
+
+		if( ! $product->get_sku() ) {
 			return false;
 		}
 
@@ -853,14 +867,15 @@ class PSFW_Product_Sync {
 			$product_data = $this->add_attributes( $product_data, $product, $store, $woocommerce, $excluded );
 			$product_data = $this->add_linked_products( $product_data, $product, $store, $woocommerce, $excluded );
 
-			$synced_product_id = $this->is_synced_product( $product, $store );
+			$synced_product_id = $this->is_synced_product( $product, $store, $woocommerce );
 			if( $synced_product_id && ! is_wp_error( $synced_product_id ) ) {
 				try {
 					$updated_product = $woocommerce->put( "products/{$synced_product_id}", $product_data );
 
 					$wc_logger->debug( sprintf( 'The product %s has been updated.', $updated_product->name ), array( 'source' => 'product-sync' ) );
 
-					$this->add_synced_data( $product, $updated_product->id, $store_id );
+					$product->update_meta_data( self::META_KEY . $store_id, 1 );
+					$product->save_meta_data();
 
 					if( ! in_array( 'variations', $excluded ) ) {
 						$this->add_product_variations( $updated_product->id, $product, $store, $woocommerce );
@@ -870,12 +885,15 @@ class PSFW_Product_Sync {
 					$wc_logger->error( $error->getMessage(), array( 'source' => 'product-sync' ) );
 				}
 			} else {
+
 				try {
 					$new_product = $woocommerce->post( 'products', $product_data );
 
 					$wc_logger->debug( sprintf( 'The product %s has been created.', $new_product->name ), array( 'source' => 'product-sync' ) );
 
-					$this->add_synced_data( $product, $new_product->id, $store_id );
+					$product->update_meta_data( self::META_KEY . $store_id, 1 );
+					$product->save_meta_data();
+
 					if( ! empty( $new_product->images ) ) {
 						// assume that the images are in the same order!
 
