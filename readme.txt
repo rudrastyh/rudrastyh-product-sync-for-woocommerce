@@ -3,7 +3,7 @@ Contributors: rudrastyh
 Tags: woocommerce, woocommerce products, product sync, product management
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.1
+Stable tag: 1.2
 Requires PHP: 7.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -24,12 +24,13 @@ This plugin allows you to connect multiple WooCommerce stores via the REST API a
 
 = Pro features =
 
-✅ **An unlimited number** of WooCommerce stores can be connected (only one in the free version of the plugin).
-✅ The **Auto Mode** allows you to sync products to all connected stores automatically (without selecting them).
-✅ Product metadata (custom fields) synchronization (you can also exclude specific meta keys from syncing in the plugin settings).
-✅ Change product prices (or other product data) dynamically when syncing to a specific store.
-✅ Syncing products without SKU.
-✅ Bulk syncing multiple products from the **Product > All Products** page.
+🔥 **An unlimited number** of WooCommerce stores can be connected (only one in the free version of the plugin).
+🔥 The **Auto Mode** allows you to sync products to all connected stores automatically (without selecting them).
+🔥 Product metadata (custom fields) synchronization (you can also exclude specific meta keys from syncing in the plugin settings).
+🔥 Change product prices (or other product data) dynamically when syncing to a specific store.
+🔥 Syncing products without SKU.
+🔥 Bulk syncing multiple products from the **Product > All Products** page.
+🔥 WP-CLI commands
 
 🚀 [Upgrade to Pro](https://rudrastyh.com/plugins/simple-wordpress-crossposting)
 
@@ -59,8 +60,17 @@ Yes. But in this case you need to install the plugin on both sites and add each 
 
 
 == Screenshots ==
+1. Select stores to which you want to sync this product.
+2. 
+3. Stores can be connected on this page, you need to provide Consumer Key and Secret.
+4. Exclude any product data from syncing
 
 == Changelog ==
+
+= 1.2 =
+* Improved plugin logging (logs are available in WooCommerce > Status > Logs)
+* Added: Translation support for log messages
+* Minor UI improvements
 
 = 1.1 =
 * Added: Synced products are now connected by SKU

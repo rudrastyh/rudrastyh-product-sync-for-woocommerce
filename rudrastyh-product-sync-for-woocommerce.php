@@ -4,7 +4,7 @@
  Description: Allows you to sync products between standalone WooCommerce stores.
  Author: Misha Rudrastyh
  Author URI: https://rudrastyh.com
- Version: 1.1
+ Version: 1.2
  Requires Plugins: woocommerce
  Text domain: rudrastyh-product-sync-for-woocommerce
  License: GPL v2 or later
@@ -157,11 +157,7 @@ class PSFW_Product_Sync {
 		$stores = $this->get_stores();
 		// before adding a new one let's check if it is already in the list
 		if( count( $stores ) > 0 ) {
-			foreach( $stores as $store ) {
-				if( $store[ 'url' ] == $url ) {
-					wp_send_json_error( new WP_Error( 'not_added', __( 'It seems like the store with this URL has already been added.', 'rudrastyh-product-sync-for-woocommerce' ) ) );
-				}
-			}
+			wp_send_json_error( new WP_Error( 'pro_required', sprintf( __( 'If you need to add more stores, please consider upgrading to the <a href="%s">PRO version</a> of the plugin.', 'rudrastyh-product-sync-for-woocommerce' ), 'https://rudrastyh.com/plugins/simple-wordpress-crossposting' ) ) );
 		}
 
 		$not_added_err = new WP_Error(
@@ -405,7 +401,7 @@ class PSFW_Product_Sync {
               'fields' => array(
                 'sku' => array( 'label' => esc_html__( 'SKU', 'rudrastyh-product-sync-for-woocommerce' ) ),
                 'global_unique_id' => array( 'label' => esc_html__( 'GTIN, UPC, EAN, or ISBN', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'stock' => array( 'label' => esc_html__( 'Stock', 'rudrastyh-product-sync-for-woocommerce' ), 'description' => esc_html__( 'This option manages “Stock status”, “Stock management”, “Stock quantity”, “Allow backorders” and “Low stock threshold”.', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'stock' => array( 'label' => esc_html__( 'Stock', 'rudrastyh-product-sync-for-woocommerce' ), 'description' => esc_html__( 'This option manages “Stock status”, “Stock management”, “Stock quantity”, “Allow backorders” and “Low stock threshold”.', 'rudrastyh-product-sync-for-woocommerce' ), 'pro' => true ),
                 'sold_individually' => array( 'label' => esc_html__( 'Sold individually', 'rudrastyh-product-sync-for-woocommerce' ) ),
               )
             ),
@@ -464,13 +460,22 @@ class PSFW_Product_Sync {
                 ?>
                   <tr valign="top">
                     <th scope="row"><label for="ps_fields_<?php echo esc_attr( $id ) ?>"><?php echo esc_html( $field[ 'label' ] ) ?></label></th>
-                    <td>
-	                      <select id="ps_fields_<?php echo esc_attr( $id ) ?>" name="excluded_fields[<?php echo esc_attr( $id ) ?>]" class="wc-enhanced-select">
-	                        <option value=""><?php esc_html_e( 'Yes', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
-	                        <option value="no"<?php if( in_array( $id, $excluded_fields ) ) { echo ' selected="selected"'; } ?>><?php esc_html_e( 'No', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
-	                      </select>
+					<td>
+						<!-- Pro version placeholder -->
+						<?php if( isset( $field[ 'pro' ] ) && $field[ 'pro' ] ) : ?>
+							<select id="ps_fields_<?php echo esc_attr( $id ) ?>" class="wc-enhanced-select">
+							<option value=""><?php esc_html_e( 'Yes', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
+							<option value="no" disabled="disabled"><?php esc_html_e( 'No', 'product-sync-for-woocommerce' ) ?></option>
+							</select>
+							<?php echo ! empty( $field[ 'description' ] ) ? '<p class="description">(<a href="https://rudrastyh.com/plugins/simple-wordpress-crossposting">Pro</a>) ' . esc_html( $field[ 'description' ] ) . '</p>' : '' ?>
+						<?php else : ?>
+							<select id="ps_fields_<?php echo esc_attr( $id ) ?>" name="excluded_fields[<?php echo esc_attr( $id ) ?>]" class="wc-enhanced-select">
+							<option value=""><?php esc_html_e( 'Yes', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
+							<option value="no"<?php if( in_array( $id, $excluded_fields ) ) { echo ' selected="selected"'; } ?>><?php esc_html_e( 'No', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
+							</select>
 							<?php echo ! empty( $field[ 'description' ] ) ? '<p class="description">' . esc_html( $field[ 'description' ] ) . '</p>' : '' ?>
-                    </td>
+						<?php endif; ?>
+					</td>
                   </tr>
                 <?php
               endforeach;
@@ -771,6 +776,13 @@ class PSFW_Product_Sync {
 				}
 
 				if( ! $sku = get_post_meta( $available_variation->get_id(), '_sku', true ) ) {
+					$wc_logger->warning( 
+						sprintf( 
+							__( 'The variation #%d has not been synced, because it has no SKU.', 'rudrastyh-product-sync-for-woocommerce' ),
+							$available_variation_id 
+						), 
+						array( 'source' => 'product-sync' ) 
+					);
 					continue;
 				}
 
@@ -818,16 +830,23 @@ class PSFW_Product_Sync {
 			return false;
 		}
 
-		if( ! $product->get_sku() ) {
-			return false;
-		}
-
 		if( empty( $stores ) ) {
 			return false;
 		}
 
 		$wc_logger = wc_get_logger();
 		$excluded = get_option( '_psfw_excluded_fields', array() );
+
+		if( ! $product->get_sku() ) {
+			$wc_logger->warning( 
+				sprintf( 
+					__( 'The product %s has not been synced, because it has no SKU.', 'rudrastyh-product-sync-for-woocommerce' ), 
+					$product->get_title() 
+				), 
+				array( 'source' => 'product-sync' ) 
+			);
+			return false;
+		}
 
 		$product_data = array(
 			'name'              => $product->get_title(),
@@ -872,7 +891,13 @@ class PSFW_Product_Sync {
 				try {
 					$updated_product = $woocommerce->put( "products/{$synced_product_id}", $product_data );
 
-					$wc_logger->debug( sprintf( 'The product %s has been updated.', $updated_product->name ), array( 'source' => 'product-sync' ) );
+					$wc_logger->debug( 
+						sprintf( 
+							__( 'The product %s has been updated.', 'rudrastyh-product-sync-for-woocommerce' ), 
+							$updated_product->name 
+						), 
+						array( 'source' => 'product-sync' ) 
+					);
 
 					$product->update_meta_data( self::META_KEY . $store_id, 1 );
 					$product->save_meta_data();
@@ -889,7 +914,13 @@ class PSFW_Product_Sync {
 				try {
 					$new_product = $woocommerce->post( 'products', $product_data );
 
-					$wc_logger->debug( sprintf( 'The product %s has been created.', $new_product->name ), array( 'source' => 'product-sync' ) );
+					$wc_logger->debug( 
+						sprintf( 
+							__( 'The product %s has been created.', 'rudrastyh-product-sync-for-woocommerce' ),
+							$new_product->name 
+						), 
+						array( 'source' => 'product-sync' ) 
+					);
 
 					$product->update_meta_data( self::META_KEY . $store_id, 1 );
 					$product->save_meta_data();
@@ -980,7 +1011,10 @@ class PSFW_Product_Sync {
 				if( $featured_image_url ) {
 					if( $this->is_localhost_url( $featured_image_url ) ) {
 						$wc_logger->warning(
-							sprintf( 'The image #%d can not be synced, because WooCommerce REST API can not access it on localhost.', $featured_image_id ),
+							sprintf( 
+								__( 'The image #%d can not be synced, because WooCommerce REST API can not access it on localhost.', 'rudrastyh-product-sync-for-woocommerce' ),
+								$featured_image_id 
+							),
 							array( 'source' => 'product-sync' )
 						);
 					} else {
@@ -1009,7 +1043,10 @@ class PSFW_Product_Sync {
 					if( $gallery_image_url ) {
 						if( $this->is_localhost_url( $gallery_image_url ) ) {
 							$wc_logger->warning(
-								sprintf( 'The image #%d can not be synced, because WooCommerce REST API can not access it on localhost.', $gallery_image_id ),
+								sprintf( 
+									__( 'The image #%d can not be synced, because WooCommerce REST API can not access it on localhost.', 'rudrastyh-product-sync-for-woocommerce' ),
+									$gallery_image_id 
+								),
 								array( 'source' => 'product-sync' )
 							);
 						} else {
