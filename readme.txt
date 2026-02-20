@@ -1,4 +1,4 @@
-=== Rudrastyh Product Sync for WooCommerce ===
+=== Simple Product Sync for WooCommerce ===
 Contributors: rudrastyh
 Tags: woocommerce, woocommerce products, product sync, product management
 Requires at least: 5.8
@@ -12,7 +12,7 @@ Allows you to sync products between standalone WooCommerce stores.
 
 == Description ==
 
-This plugin allows you to connect multiple WooCommerce stores via the REST API and to sync products between them.
+The Simple Product Sync for WooCommerce plugin allows you to connect multiple WooCommerce stores via the REST API and to sync products between them.
 
 = Features =
 
@@ -29,7 +29,7 @@ This plugin allows you to connect multiple WooCommerce stores via the REST API a
 🔥 Product metadata (custom fields) synchronization (you can also exclude specific meta keys from syncing in the plugin settings).
 🔥 Change product prices (or other product data) dynamically when syncing to a specific store.
 🔥 Syncing products without SKU.
-🔥 Bulk syncing multiple products from the **Product > All Products** page.
+🔥 Bulk syncing multiple products from the **Products > All Products** page.
 🔥 WP-CLI commands
 
 🚀 [Upgrade to Pro](https://rudrastyh.com/plugins/simple-wordpress-crossposting)
@@ -39,7 +39,7 @@ This plugin allows you to connect multiple WooCommerce stores via the REST API a
 = Automatic Install =
 
 1. Log into your WordPress dashboard and go to Plugins > Add New
-2. Search for "Rudrastyh Product Sync for WooCommerce"
+2. Search for "Simple Product Sync for WooCommerce"
 3. Click "Install Now" under the Rudrastyh Product Sync for WooCommerce plugin
 4. Click "Activate Now"
 
@@ -48,7 +48,7 @@ This plugin allows you to connect multiple WooCommerce stores via the REST API a
 1. Download the plugin from the download button on this page
 2. Unzip the file, and upload the resulting `rudrastyh-product-sync-for-woocommerce` folder to your `/wp-content/plugins` directory
 3. Log into your WordPress dashboard and go to Plugins
-4. Click "Activate" under the Rudrastyh Product Sync for WooCommerce plugin
+4. Click "Activate" under the Simple Product Sync for WooCommerce plugin
 
 == Frequently Asked Questions ==
 
@@ -66,6 +66,9 @@ Yes. But in this case you need to install the plugin on both sites and add each 
 4. Exclude any product data from syncing
 
 == Changelog ==
+
+= 1.2.1 =
+* Minor bug fixes
 
 = 1.2 =
 * Improved plugin logging (logs are available in WooCommerce > Status > Logs)

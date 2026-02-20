@@ -1,10 +1,10 @@
 <?php
 /*
- Plugin name: Rudrastyh Product Sync for WooCommerce
+ Plugin name: Simple Product Sync for WooCommerce
  Description: Allows you to sync products between standalone WooCommerce stores.
  Author: Misha Rudrastyh
  Author URI: https://rudrastyh.com
- Version: 1.2
+ Version: 1.2.1
  Requires Plugins: woocommerce
  Text domain: rudrastyh-product-sync-for-woocommerce
  License: GPL v2 or later
@@ -140,14 +140,8 @@ class PSFW_Product_Sync {
 
 		// url in both cases
 		$url = ! empty( $_POST[ 'url' ] ) ? untrailingslashit( sanitize_url( wp_unslash( $_POST[ 'url' ] ) ) ) : '';
-		// replace with HTTPS in case it doesn't look like localhost
-		if( 'http' == wp_parse_url( $url, PHP_URL_SCHEME ) && false === strpos( $url, 'local' ) ){
-			$url = str_replace( 'http://', 'https://', $url );
-		}
-
 		$consumer_key = ! empty( $_POST[ 'consumer_key' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'consumer_key' ] ) ) : '';
 		$consumer_secret = ! empty( $_POST[ 'consumer_secret' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'consumer_secret' ] ) ) : '';
-
 
 		// validate required fields
 		if( ! $url || ! $consumer_key || ! $consumer_secret ) {
@@ -343,7 +337,7 @@ class PSFW_Product_Sync {
 										?>
 											<tr class="psfw-store">
 												<td><?php echo isset( $store[ 'name' ] ) && $store[ 'name' ] ? esc_html( $store[ 'name' ] ) : '&ndash;' ?></td>
-												<td><?php echo esc_url( str_replace( array( 'https://', 'http://' ), '', $store[ 'url' ] ) ) ?></td>
+												<td><?php echo esc_html( str_replace( array( 'https://', 'http://' ), '', $store[ 'url' ] ) ) ?></td>
 												<td><button class="button psfw-remove-store"><?php esc_html_e( 'Remove this store', 'rudrastyh-product-sync-for-woocommerce' ) ?></button></td>
 											</tr>
 										<?php
