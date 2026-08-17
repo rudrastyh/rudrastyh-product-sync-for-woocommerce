@@ -1,10 +1,10 @@
 <?php
 /*
  Plugin name: Simple Product Sync for WooCommerce
- Description: Allows you to sync products between standalone WooCommerce stores.
+ Description: Allows you to sync products between standalone stores via the WooCommerce REST API
  Author: Misha Rudrastyh
  Author URI: https://rudrastyh.com
- Version: 1.2.1
+ Version: 1.4
  Requires Plugins: woocommerce
  Text domain: rudrastyh-product-sync-for-woocommerce
  License: GPL v2 or later
@@ -30,14 +30,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-require __DIR__ . '/includes/WooCommerce/Client.php';
-require __DIR__ . '/includes/WooCommerce/HttpClient/BasicAuth.php';
-require __DIR__ . '/includes/WooCommerce/HttpClient/HttpClient.php';
-require __DIR__ . '/includes/WooCommerce/HttpClient/HttpClientException.php';
-require __DIR__ . '/includes/WooCommerce/HttpClient/OAuth.php';
-require __DIR__ . '/includes/WooCommerce/HttpClient/Options.php';
-require __DIR__ . '/includes/WooCommerce/HttpClient/Request.php';
-require __DIR__ . '/includes/WooCommerce/HttpClient/Response.php';
+if ( ! class_exists( 'Automattic\WooCommerce\Client' ) ) {
+	require_once __DIR__ . '/includes/WooCommerce/Client.php';
+	require_once __DIR__ . '/includes/WooCommerce/HttpClient/BasicAuth.php';
+	require_once __DIR__ . '/includes/WooCommerce/HttpClient/HttpClient.php';
+	require_once __DIR__ . '/includes/WooCommerce/HttpClient/HttpClientException.php';
+	require_once __DIR__ . '/includes/WooCommerce/HttpClient/OAuth.php';
+	require_once __DIR__ . '/includes/WooCommerce/HttpClient/Options.php';
+	require_once __DIR__ . '/includes/WooCommerce/HttpClient/Request.php';
+	require_once __DIR__ . '/includes/WooCommerce/HttpClient/Response.php';
+}
 
 use Automattic\WooCommerce\Client;
 
@@ -81,7 +83,7 @@ class PSFW_Product_Sync {
 	/************************************/
 	/*    Store management functions    */
 	/************************************/
-	private function get_stores() {
+	public function get_stores() {
 		$stores = get_option( '_psfw_stores', array() );
 		return $stores;
 	}
@@ -151,7 +153,7 @@ class PSFW_Product_Sync {
 		$stores = $this->get_stores();
 		// before adding a new one let's check if it is already in the list
 		if( count( $stores ) > 0 ) {
-			wp_send_json_error( new WP_Error( 'pro_required', sprintf( __( 'If you need to add more stores, please consider upgrading to the <a href="%s">PRO version</a> of the plugin.', 'rudrastyh-product-sync-for-woocommerce' ), 'https://rudrastyh.com/plugins/simple-wordpress-crossposting' ) ) );
+			wp_send_json_error( new WP_Error( 'pro_required', sprintf( __( 'Only one store is supported in the free version of the plugin. If you need to add more stores, please consider upgrading to the <a href="%s">PRO version</a>.', 'rudrastyh-product-sync-for-woocommerce' ), 'https://rudrastyh.com/plugins/simple-wordpress-crossposting' ) ) );
 		}
 
 		$not_added_err = new WP_Error(
@@ -207,8 +209,8 @@ class PSFW_Product_Sync {
 
 		wp_send_json_success(
 			array(
-				'message' => __( 'The store has been added.', 'rudrastyh-product-sync-for-woocommerce' ),
-				'tr' => '<tr class="psfw-store"><td>' . esc_html( ( empty( $store[ 'name' ] ) ? '&ndash;' : $store[ 'name' ] ) ) . '</td><td>' . str_replace( array( 'https://', 'http://' ), '', esc_url( $store[ 'url' ] ) ) . '</td><td><button class="button psfw-remove-store">' . esc_html__( 'Remove this store', 'rudrastyh-product-sync-for-woocommerce' ) . '</button></td></tr>',
+				'message' => __( 'Store added.', 'rudrastyh-product-sync-for-woocommerce' ),
+				'tr' => '<tr class="psfw-store"><td>' . esc_html( ( empty( $store[ 'name' ] ) ? '&ndash;' : $store[ 'name' ] ) ) . '</td><td>' . str_replace( array( 'https://', 'http://' ), '', esc_url( $store[ 'url' ] ) ) . '</td><td><button class="components-button is-secondary is-compact psfw-remove-store">' . esc_html__( 'Remove this store', 'rudrastyh-product-sync-for-woocommerce' ) . '</button></td></tr>',
 			)
 		);
 
@@ -240,7 +242,12 @@ class PSFW_Product_Sync {
 	// settings tab
 	public function settings_tab( $tabs ) {
 
-		$tabs[ self::TAB ] = __( 'Product Sync', 'rudrastyh-product-sync-for-woocommerce' );
+		$tabs = array_slice( $tabs, 0, 2, true )
+		+ array(
+			self::TAB => __( 'Product Sync', 'rudrastyh-product-sync-for-woocommerce' ),
+		)
+		+ array_slice( $tabs, 2, null, true );
+
 		return $tabs;
 
 	}
@@ -306,13 +313,13 @@ class PSFW_Product_Sync {
 						<div class="form-field">
 							<label for="consumer_key"><?php esc_html_e( 'Consumer Key', 'rudrastyh-product-sync-for-woocommerce' ) ?></label>
 							<input type="text" size="35" id="consumer_key" name="consumer_key" class="input" aria-required="true" placeholder="ck_" />
-							<p class="description"><?php esc_html_e( 'Consumer Key and Consumer Secret from the target store.', 'rudrastyh-product-sync-for-woocommerce' ) ?></p>
+							<p class="description"><?php echo sprintf( __( '<a href="%s" target="_blank">Read here</a> where to get the Consumer Key and Consumer Secret.', 'rudrastyh-product-sync-for-woocommerce' ), 'https://rudrastyh.com/woocommerce/rest-api-create-update-remove-products.html#rest_api_keys' ) ?></p>
 						</div>
 						<div class="form-field">
 							<label for="consumer_secret"><?php esc_html_e( 'Consumer Secret', 'rudrastyh-product-sync-for-woocommerce' ) ?></label>
 							<input type="text" size="35" id="consumer_secret" name="consumer_secret" class="input" aria-required="true" placeholder="cs_" />
 						</div>
-						<button type="button" id="psfw_add_new_store" disabled class="components-button is-primary"><?php esc_html_e( 'Add store', 'rudrastyh-product-sync-for-woocommerce' ) ?></button>
+						<button type="button" id="psfw_add_new_store" disabled class="components-button is-primary is-compact"><?php esc_html_e( 'Add store', 'rudrastyh-product-sync-for-woocommerce' ) ?></button>
 					</div>
 				</div>
 				<!-- notices -->
@@ -338,7 +345,7 @@ class PSFW_Product_Sync {
 											<tr class="psfw-store">
 												<td><?php echo isset( $store[ 'name' ] ) && $store[ 'name' ] ? esc_html( $store[ 'name' ] ) : '&ndash;' ?></td>
 												<td><?php echo esc_html( str_replace( array( 'https://', 'http://' ), '', $store[ 'url' ] ) ) ?></td>
-												<td><button class="button psfw-remove-store"><?php esc_html_e( 'Remove this store', 'rudrastyh-product-sync-for-woocommerce' ) ?></button></td>
+												<td><button class="components-button is-secondary psfw-remove-store is-compact"><?php esc_html_e( 'Remove this store', 'rudrastyh-product-sync-for-woocommerce' ) ?></button></td>
 											</tr>
 										<?php
 									}
@@ -366,78 +373,79 @@ class PSFW_Product_Sync {
             array(
               'title' => '',
               'fields' => array(
-                'name' => array( 'label' => esc_html__( 'Product title', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'slug' => array( 'label' => __( 'Slug', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'status' => array( 'label' => __( 'Status', 'rudrastyh-product-sync-for-woocommerce' ), 'description' => esc_html__( 'If product statuses aren’t syncing, all new products are going to be created as drafts.', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'featured' => array( 'label' => esc_html__( 'Featured', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'catalog_visibility' => array( 'label' => rtrim( esc_html__( 'Catalog visibility:', 'rudrastyh-product-sync-for-woocommerce' ), ':' ) ),
-                'description' => array( 'label' => esc_html__( 'Product description', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'short_description' => array( 'label' => esc_html__( 'Product short description', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'image_id' => array( 'label' => esc_html__( 'Product image', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'gallery_image_ids' => array( 'label' => esc_html__( 'Product gallery', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'category_ids' => array( 'label' => esc_html__( 'Product categories', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'tag_ids' => array( 'label' => esc_html__( 'Product tags', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'brand_ids' => array( 'label' => esc_html__( 'Product brands', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'name' => array( 'label' => __( 'Product name', 'woocommerce' ) ),
+                'slug' => array( 'label' => __( 'Slug' ) ),
+				'date' => array( 'label' => __( 'Date' ), 'description' => esc_html__( 'Includes both the creation date and the last modified date.', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'status' => array( 'label' => __( 'Status' ), 'description' => esc_html__( 'If product statuses aren’t syncing, all new products are going to be created as drafts.', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'featured' => array( 'label' => __( 'Featured', 'woocommerce' ) ),
+                'catalog_visibility' => array( 'label' => rtrim( __( 'Catalog visibility:', 'woocommerce' ), ':' ) ),
+                'description' => array( 'label' => __( 'Product description', 'woocommerce' ) ),
+                'short_description' => array( 'label' => __( 'Product short description', 'woocommerce' ) ),
+                'image_id' => array( 'label' => __( 'Product image', 'woocommerce' ) ),
+                'gallery_image_ids' => array( 'label' => __( 'Product gallery', 'woocommerce' ) ),
+                'category_ids' => array( 'label' => __( 'Product categories', 'woocommerce' ) ),
+                'tag_ids' => array( 'label' => __( 'Product tags', 'woocommerce' ) ),
+                'brand_ids' => array( 'label' => __( 'Product brands', 'woocommerce' ) ),
               )
             ),
             // Prices
             array(
-              'title' => esc_html__( 'Price', 'rudrastyh-product-sync-for-woocommerce' ),
+              'title' => __( 'Price', 'woocommerce' ),
               'fields' => array(
-                'regular_price' => array( 'label' => esc_html__( 'Regular price', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'sale_price' => array( 'label' => esc_html__( 'Sale price', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'sale_price_dates' => array( 'label' => esc_html__( 'Sale price dates', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'regular_price' => array( 'label' => __( 'Regular price', 'woocommerce' ) ),
+                'sale_price' => array( 'label' => __( 'Sale price', 'woocommerce' ) ),
+                'sale_price_dates' => array( 'label' => __( 'Sale price dates', 'woocommerce' ) ),
               )
             ),
             // Inventory
             array(
-              'title' => esc_html__( 'Inventory', 'rudrastyh-product-sync-for-woocommerce' ),
+              'title' => __( 'Inventory', 'woocommerce' ),
               'fields' => array(
-                'sku' => array( 'label' => esc_html__( 'SKU', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'global_unique_id' => array( 'label' => esc_html__( 'GTIN, UPC, EAN, or ISBN', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'stock' => array( 'label' => esc_html__( 'Stock', 'rudrastyh-product-sync-for-woocommerce' ), 'description' => esc_html__( 'This option manages “Stock status”, “Stock management”, “Stock quantity”, “Allow backorders” and “Low stock threshold”.', 'rudrastyh-product-sync-for-woocommerce' ), 'pro' => true ),
-                'sold_individually' => array( 'label' => esc_html__( 'Sold individually', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'sku' => array( 'label' => __( 'SKU', 'woocommerce' ) ),
+                'global_unique_id' => array( 'label' => __( 'GTIN, UPC, EAN, or ISBN', 'woocommerce' ) ),
+                'stock' => array( 'label' => __( 'Stock', 'woocommerce' ), 'description' => esc_html__( 'This option manages “Stock status”, “Stock management”, “Stock quantity”, “Allow backorders” and “Low stock threshold”.', 'rudrastyh-product-sync-for-woocommerce' ), 'pro' => true ),
+                'sold_individually' => array( 'label' => __( 'Sold individually', 'woocommerce' ) ),
               )
             ),
             // Shipping
             array(
-              'title' => esc_html__( 'Shipping', 'rudrastyh-product-sync-for-woocommerce' ),
+              'title' => __( 'Shipping', 'woocommerce' ),
               'fields' => array(
-                'weight' => array( 'label' => esc_html__( 'Weight', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'dimensions' => array( 'label' => esc_html__( 'Dimensions', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'shipping_class' => array( 'label' => esc_html__( 'Shipping class', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'weight' => array( 'label' => __( 'Weight', 'woocommerce' ) ),
+                'dimensions' => array( 'label' => __( 'Dimensions', 'woocommerce' ) ),
+                'shipping_class' => array( 'label' => __( 'Shipping class', 'woocommerce' ) ),
               )
             ),
             // Linked products
             array(
-              'title' => esc_html__( 'Linked products', 'rudrastyh-product-sync-for-woocommerce' ),
+              'title' => __( 'Linked products', 'woocommerce' ),
               'fields' => array(
-                'upsell_ids' => array( 'label' => esc_html__( 'Upsells', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'cross_sell_ids' => array( 'label' => esc_html__( 'Cross-sells', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'upsell_ids' => array( 'label' => __( 'Upsells', 'woocommerce' ) ),
+                'cross_sell_ids' => array( 'label' => __( 'Cross-sells', 'woocommerce' ) ),
               )
             ),
             // Attributes
             array(
-              'title' => esc_html__( 'Attributes', 'rudrastyh-product-sync-for-woocommerce' ),
+              'title' => __( 'Attributes', 'woocommerce' ),
               'fields' => array(
-                'attributes' => array( 'label' => esc_html__( 'Product attributes', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'attributes' => array( 'label' => __( 'Product attributes', 'woocommerce' ) ),
               )
             ),
             // Variations
             array(
-              'title' => esc_html__( 'Variations', 'rudrastyh-product-sync-for-woocommerce' ),
+              'title' => __( 'Variations', 'woocommerce' ),
               'fields' => array(
-                'variations' => array( 'label' => esc_html__( 'Variations', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'default_attributes' => array( 'label' => ucfirst( strtolower( esc_html__( 'Default Form Values', 'rudrastyh-product-sync-for-woocommerce' ) ) ) ),
+                'variations' => array( 'label' => __( 'Variations', 'woocommerce' ) ),
+                'default_attributes' => array( 'label' => ucfirst( strtolower( __( 'Default Form Values', 'woocommerce' ) ) ) ),
               )
             ),
             // Advanced
             array(
-              'title' => esc_html__( 'Advanced', 'rudrastyh-product-sync-for-woocommerce' ),
+              'title' => __( 'Advanced', 'woocommerce' ),
               'fields' => array(
-                'purchase_note' => array( 'label' => esc_html__( 'Purchase note', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'menu_order' => array( 'label' => esc_html__( 'Menu order', 'rudrastyh-product-sync-for-woocommerce' ) ),
-                'enable_reviews' => array( 'label' => esc_html__( 'Enable reviews', 'rudrastyh-product-sync-for-woocommerce' ) ),
+                'purchase_note' => array( 'label' => __( 'Purchase note', 'woocommerce' ) ),
+                'menu_order' => array( 'label' => __( 'Menu order', 'woocommerce' ) ),
+                'enable_reviews' => array( 'label' => __( 'Enable reviews', 'woocommerce' ) ),
               )
             ),
           );
@@ -458,14 +466,14 @@ class PSFW_Product_Sync {
 						<!-- Pro version placeholder -->
 						<?php if( isset( $field[ 'pro' ] ) && $field[ 'pro' ] ) : ?>
 							<select id="ps_fields_<?php echo esc_attr( $id ) ?>" class="wc-enhanced-select">
-							<option value=""><?php esc_html_e( 'Yes', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
-							<option value="no" disabled="disabled"><?php esc_html_e( 'No', 'product-sync-for-woocommerce' ) ?></option>
+								<option value=""><?php _e( 'Yes' ) ?></option>
+								<option value="no" disabled="disabled"><?php _e( 'No' ) ?></option>
 							</select>
 							<?php echo ! empty( $field[ 'description' ] ) ? '<p class="description">(<a href="https://rudrastyh.com/plugins/simple-wordpress-crossposting">Pro</a>) ' . esc_html( $field[ 'description' ] ) . '</p>' : '' ?>
 						<?php else : ?>
 							<select id="ps_fields_<?php echo esc_attr( $id ) ?>" name="excluded_fields[<?php echo esc_attr( $id ) ?>]" class="wc-enhanced-select">
-							<option value=""><?php esc_html_e( 'Yes', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
-							<option value="no"<?php if( in_array( $id, $excluded_fields ) ) { echo ' selected="selected"'; } ?>><?php esc_html_e( 'No', 'rudrastyh-product-sync-for-woocommerce' ) ?></option>
+								<option value=""><?php _e( 'Yes' ) ?></option>
+								<option value="no"<?php if( in_array( $id, $excluded_fields ) ) { echo ' selected="selected"'; } ?>><?php _e( 'No' ) ?></option>
 							</select>
 							<?php echo ! empty( $field[ 'description' ] ) ? '<p class="description">' . esc_html( $field[ 'description' ] ) . '</p>' : '' ?>
 						<?php endif; ?>
@@ -579,6 +587,10 @@ class PSFW_Product_Sync {
 			array_unshift(
 				$links,
 				sprintf(
+					'<a href="https://rudrastyh.com/plugins/simple-wordpress-crossposting">%s</a>',
+					esc_html__( 'Upgrade to Pro', 'rudrastyh-product-sync-for-woocommerce' )
+				),
+				sprintf(
 					'<a href="%s">%s</a>',
 					add_query_arg(
 						array(
@@ -605,7 +617,7 @@ class PSFW_Product_Sync {
 
 		add_meta_box(
 			'psfw_metabox',
-			__( 'Sync to', 'rudrastyh-product-sync-for-woocommerce' ),
+			__( 'Sync product to', 'rudrastyh-product-sync-for-woocommerce' ),
 			array( $this, 'metabox_callback' ),
 			'product',
 			'side',
@@ -819,13 +831,14 @@ class PSFW_Product_Sync {
 	public function sync_product( $product_id, $stores ) {
 
 		$product = wc_get_product( $product_id );
+		$return = array();
 
 		if( ! $product ) {
-			return false;
+			return $return;
 		}
 
 		if( empty( $stores ) ) {
-			return false;
+			return $return;
 		}
 
 		$wc_logger = wc_get_logger();
@@ -858,6 +871,7 @@ class PSFW_Product_Sync {
 			//'source_product_id'  => (int) $product->get_id(),
 		);
 
+		$product_data = $this->add_dates( $product_data, $product, $excluded );
 		$product_data = $this->add_prices( $product_data, $product );
 		$product_data = $this->add_stock_and_shipping_info( $product_data, $product );
 		$product_data = $this->add_downloads( $product_data, $product );
@@ -880,6 +894,8 @@ class PSFW_Product_Sync {
 			$product_data = $this->add_attributes( $product_data, $product, $store, $woocommerce, $excluded );
 			$product_data = $this->add_linked_products( $product_data, $product, $store, $woocommerce, $excluded );
 
+			$product_data = $this->clean_excluded_fields( $product_data, $excluded );
+
 			$synced_product_id = $this->is_synced_product( $product, $store, $woocommerce );
 			if( $synced_product_id && ! is_wp_error( $synced_product_id ) ) {
 				try {
@@ -899,6 +915,8 @@ class PSFW_Product_Sync {
 					if( ! in_array( 'variations', $excluded ) ) {
 						$this->add_product_variations( $updated_product->id, $product, $store, $woocommerce );
 					}
+
+					$return[ $store_id ] = $updated_product->id;
 
 				} catch( Exception $error ) {
 					$wc_logger->error( $error->getMessage(), array( 'source' => 'product-sync' ) );
@@ -932,6 +950,8 @@ class PSFW_Product_Sync {
 						$this->add_product_variations( $new_product->id, $product, $store, $woocommerce );
 					}
 
+					$return[ $store_id ] = $new_product->id;
+
 				} catch( Exception $error ) {
 					$wc_logger->error( $error->getMessage(), array( 'source' => 'product-sync' ) );
 				}
@@ -939,9 +959,28 @@ class PSFW_Product_Sync {
 
 		}
 
+		return $return;
+
 	}
 
-	public static function add_prices( $data, $product ) {
+	public function add_dates( $data, $product, $excluded = array() ) {
+
+		$date_created = $product->get_date_created();
+		if( $date_created ) {
+			$date_created->setTimezone( new DateTimeZone( 'UTC' ) );
+			$data[ 'date_created_gmt' ] = $date_created->format( 'Y-m-d H:i:s' );
+		}
+
+		$date_modified = $product->get_date_modified();
+		if( $date_modified ) {
+			$date_modified->setTimezone( new DateTimeZone( 'UTC' ) );
+			$data[ 'date_modified_gmt' ] = $date_modified->format( 'Y-m-d H:i:s' );
+		}
+
+		return $data;
+	}
+	
+	public function add_prices( $data, $product ) {
 
 		// it makes sense for simple product and variations
 		if( in_array( $product->get_type(), array( 'simple', 'variation' ) ) ) {
@@ -959,7 +998,7 @@ class PSFW_Product_Sync {
 	/**
 	 * Allows to add stock and shipping info for product and product variations
 	 */
-	public static function add_stock_and_shipping_info( $data, $product ) {
+	public function add_stock_and_shipping_info( $data, $product ) {
 
 		// let's do for everyone anyway
 		// we can not use $product->get_sku() cause for variations it returns product sku
@@ -1281,9 +1320,7 @@ class PSFW_Product_Sync {
 			$variation_data = $this->add_images( $variation_data, $variation_product, $store, $excluded );
 			$variation_data = $this->add_variation_attributes( $variation_data, $variation_product, $store, $woocommerce );
 
-			// if( ! in_array( 'meta', $excluded_post_fields ) ) {
-			// 	$variation_data = self::add_meta_data( $variation_data, $variation_product, $blog );
-			// }
+			$variation_data = $this->clean_excluded_fields( $variation_data, $excluded );
 
 			if( isset( $crossposted_variations[ $variation_id ] ) ) {
 				// here we have to provide actual variation ID
@@ -1308,6 +1345,41 @@ class PSFW_Product_Sync {
 		} catch( Exception $error ) {
 			$wc_logger->error( $error->getMessage(), array( 'source' => 'product-sync' ) );
 		}
+
+	}
+
+	public function clean_excluded_fields( $d, $excluded ) {
+
+		if( ! $excluded ) {
+			return $d;
+		}
+
+		foreach( $d as $key => $value ) {
+			// basic exclusions
+			if( in_array( $key, $excluded ) && array_key_exists( $key, $d ) ) {
+				unset( $d[ $key ] );
+			}
+		}
+		// prices
+		if( in_array( 'sale_price_dates', $excluded ) ) {
+			unset( $d[ 'date_on_sale_from' ] );
+			unset( $d[ 'date_on_sale_to' ] );
+		}
+		// dates
+		if( in_array( 'date', $excluded ) ) {
+			unset( $d[ 'date_created_gmt' ] );
+			unset( $d[ 'date_modified_gmt' ] );
+		}
+		// inventory
+		if( in_array( 'stock', $excluded ) ) {
+			unset( $d[ 'manage_stock' ] );
+			unset( $d[ 'stock_quantity' ] );
+			unset( $d[ 'stock_status' ] );
+			unset( $d[ 'backorders' ] );
+			unset( $d[ 'low_stock_amount' ] );
+		}
+
+		return $d;
 
 	}
 
